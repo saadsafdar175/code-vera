@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import emailjs from '@emailjs/browser'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
@@ -331,18 +331,27 @@ const submitForm = async (event) => {
             <p>Codevera is a digital development studio focused on turning ideas into useful, engaging and reliable digital products.</p>
             <p>We bring design and technology together to create solutions that look exceptional and work beautifully.</p>
             <p>Our team brings 3 years of professional experience at Technext Software House. We are a team of 15 members, and every team member has at least 2 years of experience in their respective fields.</p>
-            <div className="founder-credit">
-              <div className="founder-avatar">MS</div>
-              <div className="founder-info">
-                <span>BUILT & DEVELOPED BY</span>
-                <h3>Muhammad Saad</h3>
-                <p>Owner — Codevera</p>
+            <div className="founder-credits">
+              <div className="founder-card">
+                <div className="founder-avatar">
+                  <span>MS</span>
+                </div>
+                <div className="founder-info">
+                  <span className="founder-badge">BUILT & DEVELOPED BY</span>
+                  <h3 className="founder-name">Muhammad Saad</h3>
+                  <p className="founder-role">Owner — Codevera</p>
+                </div>
               </div>
-              <div className="founder-avatar">FH</div>
-              <div className="founder-info">
-                <span>MANAGEMENT</span>
-                <h3>Muhammad Farhan</h3>
-                <p>Manager — Codevera</p>
+
+              <div className="founder-card">
+                <div className="founder-avatar founder-avatar-cyan">
+                  <span>FH</span>
+                </div>
+                <div className="founder-info">
+                  <span className="founder-badge">MANAGEMENT</span>
+                  <h3 className="founder-name">Muhammad Farhan</h3>
+                  <p className="founder-role">Manager — Codevera</p>
+                </div>
               </div>
             </div>
             <div className="team-stats">
