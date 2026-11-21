@@ -115,12 +115,12 @@ const submitForm = async (event) => {
   }
 
   const navLinks = [
-      ['Home', '#home'],
-  ['Services', '#services'],
-    ['Work', '#work'],
-    ['About', '#about'],
-    ['Process', '#process'],
-    ['Contact', '#contact'],
+    { label: 'Home', href: '#home', number: '01' },
+    { label: 'Services', href: '#services', number: '02' },
+    { label: 'Work', href: '#work', number: '03' },
+    { label: 'About', href: '#about', number: '04' },
+    { label: 'Process', href: '#process', number: '05' },
+    { label: 'Contact', href: '#contact', number: '06' },
   ]
 
   return (
@@ -134,17 +134,108 @@ const submitForm = async (event) => {
           <span>codevera<span className="brand-dot">.</span></span>
         </a>
 
-        <nav className={`nav-links ${menuOpen ? 'nav-open' : ''}`}>
-          {navLinks.map(([label, href]) => (
-            <a href={href} key={label} onClick={() => { setActiveSection(href.slice(1)); closeMenu() }} className={activeSection === href.slice(1) ? "active" : ""} aria-current={activeSection === href.slice(1) ? "page" : undefined}>{label}</a>
+        {/* Desktop Navigation */}
+        <nav className="desktop-nav-links">
+          {navLinks.map(({ label, href }) => (
+            <a
+              href={href}
+              key={label}
+              onClick={() => { setActiveSection(href.slice(1)); closeMenu() }}
+              className={activeSection === href.slice(1) ? "active" : ""}
+              aria-current={activeSection === href.slice(1) ? "page" : undefined}
+            >
+              {label}
+            </a>
           ))}
-          
         </nav>
 
-        
-        <button className="menu-toggle" onClick={() => setMenuOpen(!menuOpen)} aria-label="Toggle navigation">
-          {menuOpen ? <X /> : <Menu />}
+        {/* Mobile Menu Toggle Button */}
+        <button
+          className={`menu-toggle ${menuOpen ? 'menu-toggle-active' : ''}`}
+          onClick={() => setMenuOpen(!menuOpen)}
+          aria-label={menuOpen ? "Close navigation menu" : "Open navigation menu"}
+          aria-expanded={menuOpen}
+        >
+          {menuOpen ? <X size={20} /> : <Menu size={20} />}
         </button>
+
+        {/* Mobile Navigation Drawer / Dropdown */}
+        <AnimatePresence>
+          {menuOpen && (
+            <>
+              <motion.div
+                className="mobile-nav-backdrop"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                onClick={closeMenu}
+              />
+              <motion.nav
+                className="mobile-nav-card"
+                initial={{ opacity: 0, y: -14, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -10, scale: 0.98 }}
+                transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+                aria-label="Mobile navigation"
+              >
+                <div className="mobile-nav-header">
+                  <div className="mobile-nav-badge">
+                    <span className="status-dot" />
+                    <span>NAVIGATION MENU</span>
+                  </div>
+                  <span className="mobile-nav-version">CODEVERA</span>
+                </div>
+
+                <div className="mobile-nav-list">
+                  {navLinks.map(({ label, href, number }) => {
+                    const isActive = activeSection === href.slice(1)
+                    return (
+                      <a
+                        href={href}
+                        key={label}
+                        onClick={() => { setActiveSection(href.slice(1)); closeMenu() }}
+                        className={`mobile-nav-item ${isActive ? "active" : ""}`}
+                        aria-current={isActive ? "page" : undefined}
+                      >
+                        <div className="mobile-nav-item-left">
+                          <span className="mobile-nav-number">{number}</span>
+                          <span className="mobile-nav-label">{label}</span>
+                        </div>
+                        <div className="mobile-nav-item-right">
+                          {isActive && <span className="mobile-nav-active-pill">Active</span>}
+                          <ArrowUpRight size={16} className="mobile-nav-arrow" />
+                        </div>
+                      </a>
+                    )
+                  })}
+                </div>
+
+                <div className="mobile-nav-divider" />
+
+                <div className="mobile-nav-actions">
+                  <a
+                    className="button button-primary mobile-nav-btn-primary"
+                    href="#contact"
+                    onClick={closeMenu}
+                  >
+                    Start a Project <ArrowUpRight size={16} />
+                  </a>
+                  <a
+                    className="mobile-nav-btn-whatsapp"
+                    href={whatsapp}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={closeMenu}
+                  >
+                    <MessageCircle size={17} />
+                    <span>WhatsApp Quick Inquiry</span>
+                  </a>
+                </div>
+              </motion.nav>
+            </>
+          )}
+        </AnimatePresence>
       </header>
 
       <main>
