@@ -8,7 +8,7 @@ import {
   Monitor, Database, Send, Layers3
 } from 'lucide-react'
 
-const email = 'http://gmail.com/npm saadstyle23@gmail.com'
+const email = 'saadstyle23@gmail.com'
 const whatsapp = 'https://wa.me/923460976586'
 
 const services = [
