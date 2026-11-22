@@ -70,6 +70,10 @@ export const trackEvent = async (eventName, eventParams = {}) => {
  * @returns {Promise<{ success: boolean, id?: string, error?: any }>}
  */
 export const saveMessageToFirebase = async ({ name, email, service, message }) => {
+  console.log("🔄 [Firebase] Attempting to save message to Firestore...");
+  console.log("🔄 [Firebase] Project ID:", firebaseConfig.projectId);
+  console.log("🔄 [Firebase] Data:", { name, email, service, messageLength: message?.length });
+
   try {
     const docRef = await addDoc(collection(db, "inquiries"), {
       name: name ? name.trim() : "",
@@ -83,9 +87,9 @@ export const saveMessageToFirebase = async ({ name, email, service, message }) =
       url: typeof window !== "undefined" ? window.location.href : ""
     });
 
-    console.log("✓ [Firebase Firestore] Message stored successfully with ID:", docRef.id);
+    console.log("✅ [Firebase Firestore] Message stored! Document ID:", docRef.id);
+    console.log("✅ [Firebase Firestore] View at: https://console.firebase.google.com/project/code-vera/firestore/data/~2Finquiries~2F" + docRef.id);
 
-    // Track analytics event for successful message storage in Firebase
     await trackEvent("message_stored_firebase", {
       service: service || "Website Development",
       has_email: Boolean(email),
@@ -94,13 +98,26 @@ export const saveMessageToFirebase = async ({ name, email, service, message }) =
 
     return { success: true, id: docRef.id };
   } catch (error) {
-    console.warn("! [Firebase Firestore Notice]: Could not write document:", error.code || error.message);
-    // Track analytics event for failed storage attempt
+    console.error("❌ [Firebase Firestore ERROR] Code:", error.code);
+    console.error("❌ [Firebase Firestore ERROR] Message:", error.message);
+    console.error("❌ [Firebase Firestore ERROR] Full error:", error);
+
+    // Specific error guidance
+    if (error.code === "permission-denied") {
+      console.error("🔒 PERMISSION DENIED: Firestore security rules are blocking writes.");
+      console.error("👉 Fix: Go to https://console.firebase.google.com/project/code-vera/firestore/rules");
+      console.error("👉 Add rule: allow create: if true; for the inquiries collection");
+    } else if (error.code === "unavailable") {
+      console.error("🌐 NETWORK ERROR: Cannot reach Firebase servers. Check internet connection.");
+    } else if (error.code === "not-found") {
+      console.error("📂 NOT FOUND: Firestore database may not be created yet.");
+      console.error("👉 Fix: Go to https://console.firebase.google.com/project/code-vera/firestore");
+    }
+
     trackEvent("message_firebase_error", {
       error_code: error.code || "unknown",
       error_message: error.message || "Failed to write"
     });
-    // Return error object without crashing the UI
     return { success: false, error };
   }
 };

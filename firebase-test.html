@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Firebase Direct Test</title>
+  <style>
+    body { font-family: monospace; padding: 20px; background: #0f0f1a; color: #fff; }
+    button { padding: 12px 24px; background: #6366f1; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; margin: 10px 0; display: block; }
+    #log { background: #1a1a2e; padding: 15px; border-radius: 8px; margin-top: 20px; white-space: pre-wrap; min-height: 200px; }
+    .ok { color: #22c55e; }
+    .err { color: #ef4444; }
+    .info { color: #60a5fa; }
+  </style>
+</head>
+<body>
+  <h2>🔥 Firebase Firestore Direct Test</h2>
+  <button onclick="testFirestore()">▶ Test Firestore Write Now</button>
+  <div id="log">Click the button to test...</div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
+    import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBs-agl3hnVI1Lkx3AIaFitd1uOqEFtCuQ",
+      authDomain: "code-vera.firebaseapp.com",
+      projectId: "code-vera",
+      storageBucket: "code-vera.firebasestorage.app",
+      messagingSenderId: "281503358486",
+      appId: "1:281503358486:web:f511d3e343c88d88ed9f37"
+    };
+
+    const log = (msg, cls = 'info') => {
+      const div = document.getElementById('log');
+      div.innerHTML += `<span class="${cls}">${new Date().toLocaleTimeString()} — ${msg}</span>\n`;
+    };
+
+    window.testFirestore = async () => {
+      document.getElementById('log').innerHTML = '';
+      log('🔄 Initializing Firebase...', 'info');
+
+      try {
+        const app = initializeApp(firebaseConfig, 'test-' + Date.now());
+        const db = getFirestore(app);
+        log('✅ Firebase initialized. Project: code-vera', 'ok');
+        log('🔄 Writing to Firestore inquiries collection...', 'info');
+
+        const docRef = await addDoc(collection(db, "inquiries"), {
+          name: "Browser Test User",
+          email: "browsertest@example.com",
+          service: "Website Development",
+          message: "Direct browser test - " + new Date().toISOString(),
+          submittedAt: new Date().toISOString(),
+          status: "browser-test",
+          url: window.location.href
+        });
+
+        log('✅ SUCCESS! Document ID: ' + docRef.id, 'ok');
+        log('✅ Firestore IS WORKING from browser!', 'ok');
+        log('🔗 Check: https://console.firebase.google.com/project/code-vera/firestore/data/~2Finquiries', 'ok');
+      } catch (err) {
+        log('❌ ERROR CODE: ' + err.code, 'err');
+        log('❌ ERROR MESSAGE: ' + err.message, 'err');
+        if (err.code === 'permission-denied') {
+          log('🔒 FIX: Firestore rules blocking write. Update rules in Firebase Console.', 'err');
+        } else if (err.code === 'unavailable') {
+          log('🌐 FIX: Network error. Check internet connection.', 'err');
+        } else if (!err.code) {
+          log('🌐 FIX: Likely a network/CORS issue or adblocker.', 'err');
+        }
+      }
+    };
+  </script>
+</body>
+</html>
