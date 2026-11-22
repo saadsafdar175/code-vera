@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import emailjs from '@emailjs/browser'
 import { AnimatePresence, motion } from 'framer-motion'
+import { saveMessageToFirebase, trackEvent } from './firebase'
 import {
   ArrowRight, ArrowUpRight, Menu, X, Code2, Smartphone,
   Palette, Boxes, Zap, ShieldCheck, Globe2, Workflow,
@@ -65,11 +66,16 @@ function App() {
 
 
   useEffect(() => {
+    trackEvent('page_view', { url: window.location.href })
+  }, [])
+
+  useEffect(() => {
     const sections = document.querySelectorAll('main section[id]')
     const observer = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
           setActiveSection(entry.target.id)
+          trackEvent('section_view', { section: entry.target.id })
         }
       })
     }, { rootMargin: '-25% 0px -60% 0px' })
@@ -79,13 +85,40 @@ function App() {
   }, [])
   const closeMenu = () => setMenuOpen(false)
 
-const submitForm = async (event) => {
+  const submitForm = async (event) => {
     event.preventDefault()
     if (sending) return
 
     setSending(true)
     setSendStatus('')
 
+    // Track analytics inquiry submission attempt
+    trackEvent('contact_form_submit', {
+      service: form.service,
+      has_name: Boolean(form.name),
+      has_email: Boolean(form.email),
+      message_length: form.message ? form.message.length : 0
+    })
+
+    let firebaseSaved = false
+    let emailSent = false
+
+    // 1. Store message and email in Firebase Firestore
+    try {
+      const fbResult = await saveMessageToFirebase({
+        name: form.name,
+        email: form.email,
+        service: form.service,
+        message: form.message
+      })
+      if (fbResult && fbResult.success) {
+        firebaseSaved = true
+      }
+    } catch (fbErr) {
+      console.warn('Firebase submission notice:', fbErr)
+    }
+
+    // 2. Also send via EmailJS as direct email alert
     try {
       await emailjs.send(
         'service_0kdv6lg',
@@ -98,19 +131,31 @@ const submitForm = async (event) => {
         },
         'nPrUxNa91OA6Oz5LM'
       )
+      emailSent = true
+    } catch (error) {
+      console.error('Email sending notice:', error)
+    }
 
+    setSending(false)
+
+    if (firebaseSaved || emailSent) {
       setSendStatus('success')
+      trackEvent('contact_form_success', {
+        service: form.service,
+        stored_in_firebase: firebaseSaved,
+        sent_email: emailSent
+      })
       setForm({
         name: '',
         email: '',
         service: 'Website Development',
         message: '',
       })
-    } catch (error) {
-      console.error('Email sending failed:', error)
+    } else {
       setSendStatus('error')
-    } finally {
-      setSending(false)
+      trackEvent('contact_form_error', {
+        service: form.service
+      })
     }
   }
 
@@ -140,7 +185,11 @@ const submitForm = async (event) => {
             <a
               href={href}
               key={label}
-              onClick={() => { setActiveSection(href.slice(1)); closeMenu() }}
+              onClick={() => {
+                setActiveSection(href.slice(1))
+                closeMenu()
+                trackEvent('nav_click', { section: label, device: 'desktop' })
+              }}
               className={activeSection === href.slice(1) ? "active" : ""}
               aria-current={activeSection === href.slice(1) ? "page" : undefined}
             >
@@ -152,7 +201,11 @@ const submitForm = async (event) => {
         {/* Mobile Menu Toggle Button */}
         <button
           className={`menu-toggle ${menuOpen ? 'menu-toggle-active' : ''}`}
-          onClick={() => setMenuOpen(!menuOpen)}
+          onClick={() => {
+            const next = !menuOpen
+            setMenuOpen(next)
+            trackEvent('mobile_menu_toggle', { open: next })
+          }}
           aria-label={menuOpen ? "Close navigation menu" : "Open navigation menu"}
           aria-expanded={menuOpen}
         >
@@ -194,7 +247,11 @@ const submitForm = async (event) => {
                       <a
                         href={href}
                         key={label}
-                        onClick={() => { setActiveSection(href.slice(1)); closeMenu() }}
+                        onClick={() => {
+                          setActiveSection(href.slice(1))
+                          closeMenu()
+                          trackEvent('nav_click', { section: label, device: 'mobile' })
+                        }}
                         className={`mobile-nav-item ${isActive ? "active" : ""}`}
                         aria-current={isActive ? "page" : undefined}
                       >
@@ -217,7 +274,10 @@ const submitForm = async (event) => {
                   <a
                     className="button button-primary mobile-nav-btn-primary"
                     href="#contact"
-                    onClick={closeMenu}
+                    onClick={() => {
+                      closeMenu()
+                      trackEvent('cta_click', { button: 'Start a Project', location: 'mobile_nav' })
+                    }}
                   >
                     Start a Project <ArrowUpRight size={16} />
                   </a>
@@ -226,7 +286,10 @@ const submitForm = async (event) => {
                     href={whatsapp}
                     target="_blank"
                     rel="noreferrer"
-                    onClick={closeMenu}
+                    onClick={() => {
+                      closeMenu()
+                      trackEvent('whatsapp_click', { source: 'mobile_nav_drawer' })
+                    }}
                   >
                     <MessageCircle size={17} />
                     <span>WhatsApp Quick Inquiry</span>
@@ -252,8 +315,8 @@ const submitForm = async (event) => {
               From powerful websites to intelligent software, we transform ambitious ideas into digital products that move businesses forward.
             </motion.p>
             <motion.div className="hero-actions" initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}>
-              <a className="button button-primary" href="#contact">Start a Project <ArrowUpRight size={18} /></a>
-              <a className="button button-ghost" href="#work">Explore Our Work <ArrowRight size={18} /></a>
+              <a className="button button-primary" href="#contact" onClick={() => trackEvent('cta_click', { button: 'Start a Project', location: 'hero' })}>Start a Project <ArrowUpRight size={18} /></a>
+              <a className="button button-ghost" href="#work" onClick={() => trackEvent('cta_click', { button: 'Explore Our Work', location: 'hero' })}>Explore Our Work <ArrowRight size={18} /></a>
             </motion.div>
             <div className="hero-proof">
               <span><ShieldCheck size={16} /> Quality-focused development</span>
@@ -312,7 +375,7 @@ const submitForm = async (event) => {
                 </div>
                 <div className="project-info">
                   <div><span className="project-type">{project.type}</span><h3>{project.name}</h3></div>
-                  <button className="round-arrow" onClick={() => setSelectedProject(project)} aria-label={`View ${project.name} details`}><ArrowUpRight /></button>
+              <button className="round-arrow" onClick={() => { setSelectedProject(project); trackEvent('project_view', { project: project.name, type: project.type }) }} aria-label={`View ${project.name} details`}><ArrowUpRight /></button>
                 </div>
                 <div className="project-tags">{project.tags.map(tag => <span key={tag}>{tag}</span>)}</div>
               </motion.article>
@@ -365,7 +428,7 @@ const submitForm = async (event) => {
               <span><Check size={17} /> Reliable solutions</span>
               <span><Check size={17} /> Clear communication</span>
             </div>
-            <a className="button button-primary" href="#contact">Work With Us <ArrowUpRight size={18} /></a>
+            <a className="button button-primary" href="#contact" onClick={() => trackEvent('cta_click', { button: 'Work With Us', location: 'about' })}>Work With Us <ArrowUpRight size={18} /></a>
           </motion.div>
         </section>
 
@@ -404,7 +467,7 @@ const submitForm = async (event) => {
                 <div className="price">{plan.price}</div>
                 <div className="pricing-divider" />
                 <ul>{plan.features.map(feature => <li key={feature}><Check size={16} /> {feature}</li>)}</ul>
-                <a className={plan.popular ? 'button button-primary' : 'button button-ghost'} href={`${whatsapp}?text=${encodeURIComponent(`Hello Codevera, I am interested in the ${plan.name} package.`)}`}>Discuss Package <ArrowUpRight size={17} /></a>
+                <a className={plan.popular ? 'button button-primary' : 'button button-ghost'} href={`${whatsapp}?text=${encodeURIComponent(`Hello Codevera, I am interested in the ${plan.name} package.`)}`} target="_blank" rel="noreferrer" onClick={() => trackEvent('pricing_plan_click', { plan: plan.name })}>Discuss Package <ArrowUpRight size={17} /></a>
               </article>
             ))}
           </div>
@@ -415,7 +478,7 @@ const submitForm = async (event) => {
           <div className="faq-list">
             {faqs.map(([question, answer], i) => (
               <div className={`faq-item ${activeFaq === i ? 'faq-active' : ''}`} key={question}>
-                <button onClick={() => setActiveFaq(activeFaq === i ? -1 : i)}><span>{question}</span><ChevronDown size={19} /></button>
+                <button onClick={() => { setActiveFaq(activeFaq === i ? -1 : i); trackEvent('faq_expand', { question_index: i, question: question }) }}><span>{question}</span><ChevronDown size={19} /></button>
                 <AnimatePresence>{activeFaq === i && <motion.p initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.25 }}>{answer}</motion.p>}</AnimatePresence>
               </div>
             ))}
@@ -428,8 +491,8 @@ const submitForm = async (event) => {
               <span className="eyebrow">LET'S CREATE SOMETHING</span>
               <h2>Your next big idea<br />starts <span className="gradient-text">right here.</span></h2>
               <p>Tell us what you're imagining. Let's turn it into something real.</p>
-              <a className="contact-method" href={`mailto:${email}`}><Mail size={19} /><span><small>EMAIL US</small>{email}</span><ArrowUpRight size={18} /></a>
-              <a className="contact-method" href={whatsapp} target="_blank" rel="noreferrer"><MessageCircle size={19} /><span><small>WHATSAPP</small>+92 346 0976586</span><ArrowUpRight size={18} /></a>
+              <a className="contact-method" href={`mailto:${email}`} onClick={() => trackEvent('email_click', { source: 'contact' })}><Mail size={19} /><span><small>EMAIL US</small>{email}</span><ArrowUpRight size={18} /></a>
+              <a className="contact-method" href={whatsapp} target="_blank" rel="noreferrer" onClick={() => trackEvent('whatsapp_click', { source: 'contact_section' })}><MessageCircle size={19} /><span><small>WHATSAPP</small>+92 346 0976586</span><ArrowUpRight size={18} /></a>
             </div>
             <form className="contact-form" onSubmit={submitForm}>
               <label>Your name<input required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Enter your name" /></label>
@@ -458,18 +521,18 @@ const submitForm = async (event) => {
         <div className="footer-bottom"><span>Ã‚Â© {new Date().getFullYear()} Codevera. All rights reserved.</span><span>Designed to move you forward <Sparkles size={14} /></span></div>
       </footer>
 
-      <a className="floating-whatsapp" href={whatsapp} target="_blank" rel="noreferrer" aria-label="Chat on WhatsApp"><MessageCircle size={23} /></a>
+      <a className="floating-whatsapp" href={whatsapp} target="_blank" rel="noreferrer" aria-label="Chat on WhatsApp" onClick={() => trackEvent('whatsapp_click', { source: 'floating_button' })}><MessageCircle size={23} /></a>
 
       <AnimatePresence>
         {selectedProject && (
           <motion.div className="modal-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedProject(null)}>
             <motion.div className="project-modal" initial={{ opacity: 0, y: 25, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 20 }} onClick={e => e.stopPropagation()}>
-              <button className="modal-close" onClick={() => setSelectedProject(null)} aria-label="Close project details"><X /></button>
+              <button className="modal-close" onClick={() => { setSelectedProject(null); trackEvent('project_modal_close', { project: selectedProject.name }) }} aria-label="Close project details"><X /></button>
               <span className="eyebrow">{selectedProject.type}</span>
               <h2>{selectedProject.name}</h2>
               <p>{selectedProject.desc}</p>
               <div className="project-tags">{selectedProject.tags.map(tag => <span key={tag}>{tag}</span>)}</div>
-              <a className="button button-primary" href={`${whatsapp}?text=${encodeURIComponent(`Hello Codevera, I would like to discuss a project similar to ${selectedProject.name}.`)}`} target="_blank" rel="noreferrer">Discuss a Similar Project <ArrowUpRight size={17} /></a>
+              <a className="button button-primary" href={`${whatsapp}?text=${encodeURIComponent(`Hello Codevera, I would like to discuss a project similar to ${selectedProject.name}.`)}`} target="_blank" rel="noreferrer" onClick={() => trackEvent('project_inquiry_click', { project: selectedProject.name })}>Discuss a Similar Project <ArrowUpRight size={17} /></a>
             </motion.div>
           </motion.div>
         )}
